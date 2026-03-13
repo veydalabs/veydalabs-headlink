@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VeydaLabs Eye Trackpad Control</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">VeydaLabs HeadLink</p>
+        <h1>Right Eye Trackpad Control</h1>
+        <p class="hero-text">
+          Drag inside the control pad to drive horizontal and vertical eye motion in real time.
+          All servo outputs are clamped to your safe mechanical limits.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button id="connect-btn" class="action-btn action-btn-primary" type="button">Connect Arduino</button>
+        <button id="disconnect-btn" class="action-btn" type="button" disabled>Disconnect</button>
+        <button id="center-btn" class="action-btn" type="button">Center Eye</button>
+        <button id="blink-btn" class="action-btn action-btn-warm" type="button" disabled>Blink Now</button>
+        <button id="squint-btn" class="action-btn" type="button" disabled>Squint</button>
+        <button id="autoblink-btn" class="action-btn" type="button" disabled>Auto Blink: Off</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel panel-trackpad">
+        <div class="panel-header">
+          <div>
+            <h2>Trackpad</h2>
+            <p>Absolute position control. Left/right drives `S1`, up/down drives `S2`.</p>
+          </div>
+          <div id="status-pill" class="status-pill">Disconnected</div>
+        </div>
+
+        <div class="trackpad-wrap">
+          <div id="trackpad" class="trackpad" aria-label="Eye control trackpad">
+            <div class="trackpad-grid" aria-hidden="true"></div>
+            <div class="trackpad-crosshair" aria-hidden="true"></div>
+            <div id="trackpad-handle" class="trackpad-handle" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <div class="hint-row">
+          <span>Left edge = look left</span>
+          <span>Top edge = look up</span>
+          <span>Right edge = look right</span>
+          <span>Bottom edge = look down</span>
+        </div>
+
+        <div class="axis-slider-grid">
+          <div class="axis-slider-card">
+            <div class="slider-copy">
+              <span>Left / Right</span>
+              <strong id="horizontal-position-value">Centered</strong>
+            </div>
+            <input
+              id="horizontal-position-slider"
+              class="slider-input"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="50"
+            >
+            <div class="slider-hints">
+              <span>Left</span>
+              <span>Center</span>
+              <span>Right</span>
+            </div>
+          </div>
+
+          <div class="axis-slider-card">
+            <div class="slider-copy">
+              <span>Up / Down</span>
+              <strong id="vertical-position-value">Centered</strong>
+            </div>
+            <input
+              id="vertical-position-slider"
+              class="slider-input"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="50"
+            >
+            <div class="slider-hints">
+              <span>Up</span>
+              <span>Center</span>
+              <span>Down</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>Live Servo Angles</h2>
+          <ul id="servo-readout" class="servo-readout"></ul>
+        </section>
+
+        <section class="panel">
+          <h2>Eye Settings</h2>
+          <p class="settings-note">
+            These browser-side angles are the active working limits for the trackpad and blink.
+            Save applies them immediately and keeps them for this browser.
+          </p>
+          <form id="settings-form" class="settings-form">
+            <div class="setting-group">
+              <h3>S1 Horizontal</h3>
+              <div class="setting-fields">
+                <label class="setting-field">
+                  <span>Left</span>
+                  <input id="setting-s1-left" class="setting-input" type="number" min="0" max="180" step="0.5">
+                </label>
+                <label class="setting-field">
+                  <span>Center</span>
+                  <input id="setting-s1-center" class="setting-input" type="number" min="0" max="180" step="0.5">
+                </label>
+                <label class="setting-field">
+                  <span>Right</span>
+                  <input id="setting-s1-right" class="setting-input" type="number" min="0" max="180" step="0.5">
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <h3>S2 Vertical</h3>
+              <div class="setting-fields">
+                <label class="setting-field">
+                  <span>Up</span>
+                  <input id="setting-s2-up" class="setting-input" type="number" min="0" max="180" step="0.5">
+                </label>
+                <label class="setting-field">
+                  <span>Center</span>
+                  <input id="setting-s2-center" class="setting-input" type="number" min="0" max="180" step="0.5">
+                </label>
+                <label class="setting-field">
+                  <span>Down</span>
+                  <input id="setting-s2-down" class="setting-input" type="number" min="0" max="180" step="0.5">
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <h3>S3 Lower Lid</h3>
+              <div class="setting-fields setting-fields-compact">
+                <label class="setting-field">
+                  <span>Open</span>
+                  <input id="setting-s3-open" class="setting-input" type="number" min="0" max="180" step="0.5">
+                </label>
+                <label class="setting-field">
+                  <span>Closed</span>
+                  <input id="setting-s3-closed" class="setting-input" type="number" min="0" max="180" step="0.5">
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <h3>S4 Upper Lid</h3>
+              <div class="setting-fields setting-fields-compact">
+                <label class="setting-field">
+                  <span>Open</span>
+                  <input id="setting-s4-open" class="setting-input" type="number" min="0" max="180" step="0.5">
+                </label>
+                <label class="setting-field">
+                  <span>Closed</span>
+                  <input id="setting-s4-closed" class="setting-input" type="number" min="0" max="180" step="0.5">
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-actions">
+              <button class="action-btn action-btn-primary setting-btn" type="submit">Save Settings</button>
+              <button id="reset-settings-btn" class="action-btn setting-btn" type="button">Reset Defaults</button>
+            </div>
+            <p id="settings-status" class="settings-status">Using default browser settings.</p>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h2>Eyelid Position</h2>
+          <div class="slider-card">
+            <div class="slider-copy">
+              <span>Eyelid Position</span>
+              <strong id="lid-position-value">0% closed</strong>
+            </div>
+            <input
+              id="lid-position-slider"
+              class="slider-input"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="0"
+            >
+            <div class="slider-hints">
+              <span>Fully Open</span>
+              <span>Fully Closed</span>
+            </div>
+            <p class="slider-note">
+              Sets the resting eyelid position in real time and stays there until you change it.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Blink Motion</h2>
+          <div class="slider-card">
+            <div class="slider-copy">
+              <span>Blink Speed</span>
+              <strong id="blink-speed-value">1x fastest</strong>
+            </div>
+            <input
+              id="blink-speed-slider"
+              class="slider-input"
+              type="range"
+              min="1"
+              max="5"
+              step="0.25"
+              value="1"
+            >
+            <div class="slider-hints">
+              <span>Fastest</span>
+              <span>5x slower</span>
+            </div>
+            <p class="slider-note">
+              Changes how quickly the eyelids travel during each blink.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Squint Action</h2>
+          <div class="slider-card">
+            <div class="slider-copy">
+              <span>Upper Squint Angle</span>
+              <strong id="squint-upper-angle-value">100°</strong>
+            </div>
+            <input
+              id="squint-upper-angle-slider"
+              class="slider-input"
+              type="range"
+              min="0"
+              max="180"
+              step="1"
+              value="100"
+            >
+            <div class="slider-hints">
+              <span>Open Side</span>
+              <span>Closed Side</span>
+            </div>
+          </div>
+
+          <div class="slider-card slider-card-tight">
+            <div class="slider-copy">
+              <span>Lower Squint Angle</span>
+              <strong id="squint-lower-angle-value">89°</strong>
+            </div>
+            <input
+              id="squint-lower-angle-slider"
+              class="slider-input"
+              type="range"
+              min="0"
+              max="180"
+              step="1"
+              value="89"
+            >
+            <div class="slider-hints">
+              <span>Open Side</span>
+              <span>Closed Side</span>
+            </div>
+          </div>
+
+          <div class="slider-card slider-card-tight">
+            <div class="slider-copy">
+              <span>Squint Hold</span>
+              <strong id="squint-duration-value">350 ms</strong>
+            </div>
+            <input
+              id="squint-duration-slider"
+              class="slider-input"
+              type="range"
+              min="100"
+              max="3000"
+              step="50"
+              value="350"
+            >
+            <div class="slider-hints">
+              <span>Short</span>
+              <span>Long</span>
+            </div>
+          </div>
+
+          <div class="slider-card slider-card-tight">
+            <div class="slider-copy">
+              <span>Squint Lid Speed</span>
+              <strong id="squint-speed-value">180 ms</strong>
+            </div>
+            <input
+              id="squint-speed-slider"
+              class="slider-input"
+              type="range"
+              min="80"
+              max="800"
+              step="20"
+              value="180"
+            >
+            <div class="slider-hints">
+              <span>Faster</span>
+              <span>Slower</span>
+            </div>
+            <p class="slider-note">
+              These settings are saved in this browser and only apply when you press the squint button.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Serial Status</h2>
+          <dl class="stats-list">
+            <div class="stats-row">
+              <dt>Web Serial</dt>
+              <dd id="serial-support-text">Checking</dd>
+            </div>
+            <div class="stats-row">
+              <dt>Connection</dt>
+              <dd id="connection-text">Disconnected</dd>
+            </div>
+            <div class="stats-row">
+              <dt>Device</dt>
+              <dd id="device-text">None</dd>
+            </div>
+            <div class="stats-row">
+              <dt>Auto Blink</dt>
+              <dd id="autoblink-text">Off</dd>
+            </div>
+            <div class="stats-row">
+              <dt>Blink Speed</dt>
+              <dd id="blink-speed-text">1x fastest</dd>
+            </div>
+            <div class="stats-row">
+              <dt>Eyelids</dt>
+              <dd id="lid-position-text">0% closed</dd>
+            </div>
+            <div class="stats-row">
+              <dt>Squint</dt>
+              <dd id="squint-status-text">100° / 89°</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <h2>Independent Lid Test</h2>
+          <div class="slider-card">
+            <div class="slider-copy">
+              <span>Upper Eyelid</span>
+              <strong id="upper-lid-position-value">0% closed</strong>
+            </div>
+            <input
+              id="upper-lid-position-slider"
+              class="slider-input"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="0"
+            >
+            <div class="slider-hints">
+              <span>Open</span>
+              <span>Closed</span>
+            </div>
+          </div>
+
+          <div class="slider-card slider-card-tight">
+            <div class="slider-copy">
+              <span>Lower Eyelid</span>
+              <strong id="lower-lid-position-value">0% closed</strong>
+            </div>
+            <input
+              id="lower-lid-position-slider"
+              class="slider-input"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="0"
+            >
+            <div class="slider-hints">
+              <span>Open</span>
+              <span>Closed</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Action Recorder</h2>
+          <div class="record-controls">
+            <label class="record-field">
+              <span>Action Name</span>
+              <input
+                id="recording-name-input"
+                class="setting-input"
+                type="text"
+                maxlength="64"
+                placeholder="Look Left Blink"
+              >
+            </label>
+
+            <div class="record-actions">
+              <button id="record-action-btn" class="action-btn action-btn-primary setting-btn" type="button">Record</button>
+              <button id="stop-action-btn" class="action-btn setting-btn" type="button" disabled>Stop</button>
+            </div>
+
+            <p id="recording-status" class="settings-status">Ready. Max action length: 60 seconds.</p>
+          </div>
+
+          <div class="recordings-header">
+            <span>Saved Actions</span>
+            <span id="recordings-count" class="recordings-count">0 saved</span>
+          </div>
+          <ul id="recordings-list" class="recordings-list"></ul>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
